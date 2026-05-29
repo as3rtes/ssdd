@@ -47,9 +47,11 @@ MUTED = "#B8AFA9"
 ORANGE = "#FFB35C"
 RED = "#EB3D50"
 DARK_RED = "#421A22"
+DARK_TEXT = "#1E1713"
+DARK_MUTED = "#3A2A24"
 
 
-# ---------- Общие вспомогательные функции ----------
+#Общие вспомогательные функции
 
 def read_text(relative_path: str, default: str = "") -> str:
     """Читает текстовый файл из папки проекта. Если файла нет, возвращает default."""
@@ -80,7 +82,7 @@ class AnimatedBackground(QWidget):
     """Темный фон с гитарой, аккордами, волной и эквалайзером.
 
     На экране практики декоративные волны отключаются, чтобы они не
-    накладывались на текст, аккорды, бой и панель проигрывания.
+    накладывались на текст, аккорды,й и панель проигрывания.
     """
 
     def __init__(
@@ -283,15 +285,19 @@ class GlowButton(QPushButton):
                 QPushButton:pressed {{ padding-top: 15px; }}
             """)
         elif self.kind == "danger":
+            # Кнопки выхода должны читаться на темном анимированном фоне,
+            # поэтому у них выше непрозрачность фона и рамки, чем у обычных
+            # второстепенных кнопок.
+            bg = "rgba(235, 61, 80, 0.32)" if hover else "rgba(235, 61, 80, 0.24)"
+            border = "rgba(255, 145, 145, 0.72)" if hover else "rgba(255, 130, 130, 0.56)"
             self.setStyleSheet(f"""
                 QPushButton {{
-                    color: {TEXT};
+                    color: #FFF7F3;
                     border-radius: 22px;
-                    border: 1px solid rgba(255, 105, 105, 0.36);
+                    border: 1px solid {border};
                     padding: 12px 22px;
-                    background: rgba(255, 255, 255, 0.06);
+                    background: {bg};
                 }}
-                QPushButton:hover {{ background: rgba(235, 61, 80, 0.18); }}
                 QPushButton:pressed {{ padding-top: 15px; }}
             """)
         else:
@@ -733,10 +739,23 @@ class ExitConfirmOverlay(QWidget):
         super().__init__(parent)
         self.setObjectName("exitConfirmOverlay")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setStyleSheet("""
-            QWidget#exitConfirmOverlay {
-                background: rgba(0, 0, 0, 150);
-            }
+        self.setStyleSheet(f"""
+            QWidget#exitConfirmOverlay {{
+                background-color: rgba(0, 0, 0, 120);
+            }}
+            QFrame#exitConfirmMenu {{
+                background-color: rgba(30, 30, 30, 215);
+                border: 1px solid rgba(255, 255, 255, 55);
+                border-radius: 24px;
+            }}
+            QLabel#exitConfirmTitle {{
+                color: {TEXT};
+                background: transparent;
+            }}
+            QLabel#exitConfirmText {{
+                color: #F1ECE7;
+                background: transparent;
+            }}
         """)
 
         root = QVBoxLayout(self)
@@ -744,22 +763,25 @@ class ExitConfirmOverlay(QWidget):
         root.setSpacing(0)
         root.addStretch(1)
 
-        card = GlassCard()
+        card = QFrame()
+        card.setObjectName("exitConfirmMenu")
+        card.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         card.setFixedWidth(560)
+        add_shadow(card, blur=38, alpha=135, y=10)
         card_layout = QVBoxLayout(card)
         card_layout.setContentsMargins(42, 34, 42, 34)
         card_layout.setSpacing(18)
 
         title = QLabel("Выйти из приложения?")
+        title.setObjectName("exitConfirmTitle")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setFont(QFont("Segoe UI", 26, QFont.Weight.DemiBold))
-        title.setStyleSheet(f"color: {TEXT}; background: transparent;")
 
         text = QLabel("Вы действительно хотите выйти из приложения?")
+        text.setObjectName("exitConfirmText")
         text.setAlignment(Qt.AlignmentFlag.AlignCenter)
         text.setWordWrap(True)
         text.setFont(QFont("Segoe UI", 14))
-        text.setStyleSheet(f"color: {MUTED}; background: transparent;")
 
         buttons = QHBoxLayout()
         buttons.setSpacing(16)
@@ -1822,12 +1844,25 @@ class PracticeDataLoader:
 class SmallPillButton(QPushButton):
     """Небольшая кнопка для панелей практики."""
 
-    def __init__(self, text: str, primary: bool = False, parent=None):
+    def __init__(
+        self,
+        text: str,
+        primary: bool = False,
+        parent=None,
+        emphasis: bool = False,
+        dark_variant: bool = False,
+    ):
         super().__init__(text, parent)
         self.primary = primary
+        self.emphasis = emphasis
+        self.dark_variant = dark_variant
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setMinimumHeight(50)
         self.setFont(QFont("Segoe UI", 12, QFont.Weight.DemiBold))
+        self._apply_style(False)
+
+    def set_dark_variant(self, enabled: bool) -> None:
+        self.dark_variant = bool(enabled)
         self._apply_style(False)
 
     def enterEvent(self, event):
@@ -1839,15 +1874,27 @@ class SmallPillButton(QPushButton):
         super().leaveEvent(event)
 
     def _apply_style(self, hover: bool):
-        if self.primary:
+        text_color = TEXT
+        if self.dark_variant:
+            bg = "rgba(16,18,25,0.94)" if hover else "rgba(8,10,16,0.90)"
+            border = "rgba(255, 226, 168, 0.78)" if hover else "rgba(255, 226, 168, 0.52)"
+            text_color = "#FFF7EA"
+        elif self.primary:
             bg = "qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 #FFBE66, stop:0.55 #FF674B, stop:1 #E53B4E)"
             border = "rgba(255, 226, 168, 0.75)" if hover else "rgba(255, 226, 168, 0.42)"
         else:
-            bg = "rgba(255,255,255,0.105)" if hover else "rgba(255,255,255,0.055)"
-            border = "rgba(255, 255, 255, 0.28)" if hover else "rgba(255, 255, 255, 0.16)"
+            if self.emphasis:
+                # Кнопка "Показать/скрыть бой" остается в общем glass-стиле,
+                # но фон и граница сделаны плотнее, чтобы кнопка не терялась
+                # на темном фоне практики. Положение и сигналы не меняются.
+                bg = "rgba(255,255,255,0.46)" if hover else "rgba(255,255,255,0.36)"
+                border = "rgba(255, 226, 168, 0.82)" if hover else "rgba(255, 226, 168, 0.66)"
+            else:
+                bg = "rgba(255,255,255,0.18)" if hover else "rgba(255,255,255,0.125)"
+                border = "rgba(255, 255, 255, 0.42)" if hover else "rgba(255, 255, 255, 0.30)"
         self.setStyleSheet(f"""
             QPushButton {{
-                color: {TEXT};
+                color: {text_color};
                 border: 1px solid {border};
                 border-radius: 16px;
                 padding: 8px 18px;
@@ -1930,21 +1977,31 @@ class CoverCard(GlassCard):
         else:
             self.image_label.setText("обложка\nне найдена")
 
+        self.sansara_mode = self._is_sansara_track(song, singer)
+
         self.track_label = QLabel(song)
         self.track_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.track_label.setWordWrap(True)
         self.track_label.setFont(QFont("Georgia", 30, QFont.Weight.Normal))
-        self.track_label.setStyleSheet(f"color: {TEXT}; background: transparent;")
+        if self.sansara_mode:
+            # Для «Сансары» убрана светлая подложка: остается только темный текст.
+            self.track_label.setStyleSheet(f"color: {DARK_TEXT}; background: transparent;")
+        else:
+            self.track_label.setStyleSheet(f"color: {TEXT}; background: transparent;")
 
         self.singer_label = QLabel(singer)
         self.singer_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.singer_label.setFont(QFont("Segoe UI", 14))
-        self.singer_label.setStyleSheet(f"color: {MUTED}; background: transparent;")
+        if self.sansara_mode:
+            # Имя исполнителя также без плашки и заливки.
+            self.singer_label.setStyleSheet(f"color: {DARK_MUTED}; background: transparent;")
+        else:
+            self.singer_label.setStyleSheet(f"color: {MUTED}; background: transparent;")
 
         actions = QHBoxLayout()
         actions.setSpacing(14)
         self.accords_button = SmallPillButton("▦   Показать аккорды", primary=True)
-        self.battle_button = SmallPillButton("↕   Показать бой")
+        self.battle_button = SmallPillButton("↕   Показать бой", emphasis=True)
         actions.addWidget(self.accords_button)
         actions.addWidget(self.battle_button)
 
@@ -1958,11 +2015,18 @@ class CoverCard(GlassCard):
         self.accords_button.clicked.connect(self.accordsRequested.emit)
         self.battle_button.clicked.connect(self.battleRequested.emit)
 
+    @staticmethod
+    def _is_sansara_track(song: str, singer: str = "") -> bool:
+        normalized_song = song.strip().lower().replace("ё", "е")
+        normalized_singer = singer.strip().lower().replace("ё", "е")
+        return normalized_song == "сансара" and "баста" in normalized_singer
+
     def set_accords_visible(self, visible: bool) -> None:
         self.accords_button.setText("▦   Скрыть аккорды" if visible else "▦   Показать аккорды")
 
     def set_battle_visible(self, visible: bool) -> None:
         self.battle_button.setText("↕   Скрыть бой" if visible else "↕   Показать бой")
+        self.battle_button.set_dark_variant(self.sansara_mode and visible)
 
 
 class LyricsPanel(GlassCard):
@@ -2163,12 +2227,14 @@ class ChordDiagramWidget(QWidget):
     def __init__(self, chord_name: str, active: bool = False, parent=None):
         super().__init__(parent)
         self.chord_name = chord_name
-        self.active = active
+        # Автоматическую подсветку первого аккорда убрали: все аккорды
+        # должны отображаться одинаково.
+        self.active = False
         self.setFixedSize(116, 122)
         self.setToolTip(chord_name)
 
     def set_active(self, active: bool) -> None:
-        self.active = active
+        self.active = False
         self.update()
 
     def paintEvent(self, event):
@@ -2298,7 +2364,7 @@ class ChordCarouselPanel(GlassCard):
 
         names = self._visible_names()
         for index, name in enumerate(names):
-            widget = ChordDiagramWidget(name, active=index == 0)
+            widget = ChordDiagramWidget(name, active=False)
             self.widgets.append(widget)
             self.diagram_box.addWidget(widget)
         self.diagram_box.addStretch(1)
@@ -2318,45 +2384,48 @@ class ChordCarouselPanel(GlassCard):
 
 
 class BattlePatternWidget(QWidget):
-    """Статичная схема боя в одну строку без прыжков и автоподсветки."""
+    """Крупная схема боя внутри блока практики."""
 
     def __init__(self, pattern_text: str, parent=None):
         super().__init__(parent)
         self.pattern_text = pattern_text
         self.tokens = self._normalize(pattern_text)
-        self.setMinimumHeight(86)
-        self.setMinimumWidth(self._estimated_width())
-        self.setSizePolicy(QtWidgets.QSizePolicy.Policy.MinimumExpanding, QtWidgets.QSizePolicy.Policy.Fixed)
-
-    def _estimated_width(self) -> int:
-        return max(520, 34 + sum(max(52, len(token) * 22 + 28) + 10 for token in self.tokens))
+        self.plain_text = " ".join(self.tokens)
+        self.setMinimumHeight(118)
+        self.setMinimumWidth(360)
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Expanding,
+        )
 
     def paintEvent(self, event):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        if not self.tokens:
+        if not self.plain_text:
             return
 
-        x = 18
-        y = 14
-        gap = 10
-        for index, token in enumerate(self.tokens):
-            font_size = 26 if len(token) < 3 else 22
-            p.setFont(QFont("Segoe UI", font_size, QFont.Weight.DemiBold))
-            text_width = p.fontMetrics().horizontalAdvance(token)
-            cell_width = max(52, text_width + 28)
+        rect = QtCore.QRectF(8, 4, self.width() - 16, self.height() - 8)
+        font_size = self._best_font_size(rect)
+        p.setFont(QFont("Segoe UI", font_size, QFont.Weight.DemiBold))
+        p.setPen(QColor(244, 238, 232, 238))
+        p.drawText(
+            rect,
+            Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap,
+            self.plain_text,
+        )
 
-            p.setPen(QPen(QColor(255, 179, 92, 95), 1))
-            p.setBrush(QColor(255, 255, 255, 18))
-            p.drawRoundedRect(QtCore.QRectF(x, y, cell_width, 48), 14, 14)
-
-            p.setPen(QColor(244, 238, 232, 220))
-            p.drawText(QtCore.QRectF(x, y, cell_width, 42), Qt.AlignmentFlag.AlignCenter, token)
-
-            p.setFont(QFont("Segoe UI", 9, QFont.Weight.Medium))
-            p.setPen(QColor(244, 238, 232, 92))
-            p.drawText(QtCore.QRectF(x, y + 42, cell_width, 18), Qt.AlignmentFlag.AlignCenter, str(index + 1))
-            x += cell_width + gap
+    def _best_font_size(self, rect: QtCore.QRectF) -> int:
+        for size in range(58, 25, -2):
+            font = QFont("Segoe UI", size, QFont.Weight.DemiBold)
+            metrics = QtGui.QFontMetrics(font)
+            bounds = metrics.boundingRect(
+                QtCore.QRect(0, 0, int(rect.width()), int(rect.height())),
+                Qt.AlignmentFlag.AlignCenter.value | Qt.TextFlag.TextWordWrap.value,
+                self.plain_text,
+            )
+            if bounds.width() <= rect.width() and bounds.height() <= rect.height():
+                return size
+        return 26
 
     def _normalize(self, text: str) -> list[str]:
         raw = text.replace("\\n", " ").replace("\n", " ").strip()
@@ -2388,45 +2457,46 @@ class BattlePatternWidget(QWidget):
 
 
 class BattlePanel(GlassCard):
+    """Блок боя оформлен как отдельный внутренний бокс в стиле аккордов."""
+
     def __init__(self, pattern_text: str, parent=None):
         super().__init__(parent)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 18, 24, 18)
-        layout.setSpacing(8)
+        self.setMinimumHeight(178)
 
-        header = QHBoxLayout()
-        title = QLabel("Схема боя")
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(18, 14, 18, 14)
+        layout.setSpacing(0)
+
+        inner_box = QFrame()
+        inner_box.setObjectName("battleInnerBox")
+        inner_box.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Expanding,
+        )
+        inner_box.setStyleSheet("""
+            QFrame#battleInnerBox {
+                background: rgba(0, 0, 0, 0.18);
+                border: 1px solid rgba(255, 255, 255, 0.13);
+                border-radius: 18px;
+            }
+        """)
+
+        inner_layout = QVBoxLayout(inner_box)
+        inner_layout.setContentsMargins(18, 6, 18, 12)
+        inner_layout.setSpacing(2)
+
+        title = QLabel("Бой")
+        title.setFixedHeight(28)
+        title.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         title.setFont(QFont("Segoe UI", 16, QFont.Weight.DemiBold))
         title.setStyleSheet(f"color: {TEXT}; background: transparent;")
-        subtitle = QLabel("статичная схема")
-        subtitle.setStyleSheet(f"color: {MUTED}; background: transparent; font-size: 12px;")
-        header.addWidget(title)
-        header.addWidget(subtitle)
-        header.addStretch(1)
-        layout.addLayout(header)
 
-        self.scroll = QScrollArea()
-        self.scroll.setFrameShape(QFrame.Shape.NoFrame)
-        self.scroll.setWidgetResizable(False)
-        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        self.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.scroll.setFixedHeight(104)
-        self.scroll.setStyleSheet(f"""
-            QScrollArea {{ background: transparent; border: none; }}
-            QScrollBar:horizontal {{
-                background: rgba(255,255,255,0.045);
-                height: 9px;
-                border-radius: 4px;
-            }}
-            QScrollBar::handle:horizontal {{
-                background: rgba(255,179,92,0.58);
-                border-radius: 4px;
-            }}
-        """)
         self.pattern = BattlePatternWidget(pattern_text)
-        self.pattern.setStyleSheet("background: transparent;")
-        self.scroll.setWidget(self.pattern)
-        layout.addWidget(self.scroll)
+        self.pattern.setStyleSheet("background: transparent; border: none;")
+
+        inner_layout.addWidget(title)
+        inner_layout.addWidget(self.pattern, 1)
+        layout.addWidget(inner_box, 1)
 
 
 class WaveformWidget(QWidget):
@@ -2547,7 +2617,6 @@ class PlayerBar(GlassCard):
         self.rewind_button = RoundControlButton("◀", 54)
         self.play_button = RoundControlButton("▶", 72, primary=True)
         self.forward_button = RoundControlButton("▶", 54)
-        self.loop_button = RoundControlButton("↻", 50)
 
         self.volume_slider = QSlider(Qt.Orientation.Horizontal)
         self.volume_slider.setMinimum(0)
@@ -2565,7 +2634,6 @@ class PlayerBar(GlassCard):
         controls.addWidget(self.rewind_button)
         controls.addWidget(self.play_button, alignment=Qt.AlignmentFlag.AlignVCenter)
         controls.addWidget(self.forward_button)
-        controls.addWidget(self.loop_button)
         controls.addStretch(1)
         controls.addWidget(volume_icon)
         controls.addWidget(self.volume_slider)
@@ -2577,7 +2645,6 @@ class PlayerBar(GlassCard):
         self.rewind_button.clicked.connect(self.rewindRequested.emit)
         self.forward_button.clicked.connect(self.forwardRequested.emit)
         self.restart_button.clicked.connect(self.restartRequested.emit)
-        self.loop_button.clicked.connect(self.restartRequested.emit)
         self.volume_slider.valueChanged.connect(self.volumeChanged.emit)
         self.waveform.seekRequested.connect(self.seekRequested.emit)
         self.set_playing(False)
@@ -2586,6 +2653,11 @@ class PlayerBar(GlassCard):
         self.play_button.setText("⏸" if playing else "▶")
         self.waveform.set_animated(playing)
         self.volume_equalizer.set_animated(playing)
+
+    def set_countdown(self, seconds_left: int) -> None:
+        self.play_button.setText(str(seconds_left))
+        self.waveform.set_animated(False)
+        self.volume_equalizer.set_animated(False)
 
     def set_time(self, current_text: str, progress: float) -> None:
         self.current_time.setText(current_text)
@@ -2605,6 +2677,11 @@ class PracticeScreen(QMainWindow):
         self.play = False
         self.start_pos = 0.0
         self.audio_ready = False
+        self.countdown_active = False
+        self.countdown_remaining = 0
+        self.play_countdown_timer = QTimer(self)
+        self.play_countdown_timer.setInterval(1000)
+        self.play_countdown_timer.timeout.connect(self._countdown_tick)
         self.background_music = get_menu_background_music()
         self.background_music.set_context("practice")
 
@@ -2725,6 +2802,8 @@ class PracticeScreen(QMainWindow):
         self.cover_card.set_battle_visible(visible)
 
     def back_to_choice(self) -> None:
+        if self.countdown_active:
+            self._cancel_play_countdown()
         self.background_music.set_context("choose")
         try:
             pg.mixer.music.stop()
@@ -2738,15 +2817,55 @@ class PracticeScreen(QMainWindow):
         if not self.audio_ready:
             self.statusBar().showMessage("Нечего воспроизводить: аудиофайл не загружен", 2500)
             return
-        self.play = not self.play
-        try:
-            if self.play:
-                pg.mixer.music.unpause()
-            else:
+
+        if self.countdown_active:
+            self._cancel_play_countdown()
+            return
+
+        if self.play:
+            try:
                 pg.mixer.music.pause()
-            self.player_bar.set_playing(self.play)
+                self.play = False
+                self.player_bar.set_playing(False)
+            except pg.error as error:
+                self.statusBar().showMessage(f"Ошибка паузы: {error}")
+            return
+
+        self._start_play_countdown()
+
+    def _start_play_countdown(self) -> None:
+        self.countdown_active = True
+        self.countdown_remaining = 3
+        self.player_bar.set_countdown(self.countdown_remaining)
+        self.play_countdown_timer.start()
+
+    def _countdown_tick(self) -> None:
+        if not self.countdown_active:
+            self.play_countdown_timer.stop()
+            return
+
+        self.countdown_remaining -= 1
+        if self.countdown_remaining > 0:
+            self.player_bar.set_countdown(self.countdown_remaining)
+            return
+
+        self.play_countdown_timer.stop()
+        self.countdown_active = False
+        try:
+            pg.mixer.music.unpause()
+            self.play = True
+            self.player_bar.set_playing(True)
         except pg.error as error:
+            self.play = False
+            self.player_bar.set_playing(False)
             self.statusBar().showMessage(f"Ошибка воспроизведения: {error}")
+
+    def _cancel_play_countdown(self) -> None:
+        self.play_countdown_timer.stop()
+        self.countdown_active = False
+        self.countdown_remaining = 0
+        self.play = False
+        self.player_bar.set_playing(False)
 
     def seek_to_progress(self, progress: float) -> None:
         if not self.audio_ready or not self.song_length:
@@ -2781,6 +2900,8 @@ class PracticeScreen(QMainWindow):
     def restart_audio(self) -> None:
         if not self.audio_ready:
             return
+        if self.countdown_active:
+            self._cancel_play_countdown()
         self.start_pos = 0.0
         try:
             pg.mixer.music.play(0, 0.0)
