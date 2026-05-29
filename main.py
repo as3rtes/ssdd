@@ -2026,7 +2026,9 @@ class CoverCard(GlassCard):
 
     def set_battle_visible(self, visible: bool) -> None:
         self.battle_button.setText("↕   Скрыть бой" if visible else "↕   Показать бой")
-        self.battle_button.set_dark_variant(self.sansara_mode and visible)
+        # Для трека «Сансара» кнопка боя должна оставаться темной
+        # в обоих состояниях: и когда бой показан, и когда он скрыт.
+        self.battle_button.set_dark_variant(self.sansara_mode)
 
 
 class LyricsPanel(GlassCard):
